@@ -8,8 +8,22 @@ from openai import OpenAI
 
 from qa.settings import settings
 
-_openai = OpenAI(api_key=settings.openai_api_key)
-_client = chromadb.PersistentClient(path=settings.chroma_dir)
+_openai = None
+_client = None
+
+
+def _oa():
+    global _openai
+    if _openai is None:
+        _openai = OpenAI(api_key=settings.openai_api_key)
+    return _openai
+
+
+def _chroma():
+    global _client
+    if _client is None:
+        _client = chromadb.PersistentClient(path=settings.chroma_dir)
+    return _client
 
 
 def load_text(path: Path) -> str:
@@ -36,13 +50,13 @@ def chunk_text(text: str, size: int, overlap: int) -> list[str]:
 
 
 def embed(texts: list[str]) -> list[list[float]]:
-    resp = _openai.embeddings.create(model=settings.embedding_model, input=texts)
+    resp = _oa().embeddings.create(model=settings.embedding_model, input=texts)
     return [d.embedding for d in resp.data]
 
 
 def index_folder(docs_dir: str = "./docs") -> int:
     """Read every file in docs_dir, chunk + embed, store in Chroma. Returns chunk count."""
-    coll = _client.get_or_create_collection(settings.collection_name)
+    coll = _chroma().get_or_create_collection(settings.collection_name)
     paths = [p for p in Path(docs_dir).glob("**/*") if p.suffix.lower() in (".md", ".txt", ".pdf")]
     total = 0
     for path in paths:
