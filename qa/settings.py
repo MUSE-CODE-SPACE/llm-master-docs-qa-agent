@@ -3,8 +3,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    anthropic_api_key: str
-    openai_api_key: str
+    anthropic_api_key: str = ""
+    openai_api_key: str = ""
     chroma_dir: str = "./chroma_db"
     embedding_model: str = "text-embedding-3-small"
     provider: str = "openai"  # openai | anthropic | ollama
