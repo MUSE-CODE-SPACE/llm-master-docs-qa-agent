@@ -17,7 +17,7 @@ FastAPI · ChromaDB (vector store) · OpenAI embeddings · **any LLM** (OpenAI /
 
 ## Quickstart / 빠른 시작
 ```bash
-python -m venv .venv && source .venv/bin/activate
+python3.12 -m venv .venv && source .venv/bin/activate   # Python 3.12+
 pip install -r requirements.txt
 cp .env.example .env          # add your key / 키 입력
 python -m qa.indexer          # index ./docs  / 문서 색인
@@ -28,17 +28,18 @@ curl -X POST localhost:8000/ask -H 'content-type: application/json' \
 
 ## Switch providers / 벤더 전환 (no code change)
 Set in `.env`: `PROVIDER=openai` (default) · `anthropic` · `ollama` (100% local, no key).
+Default models: `gpt-5.4-mini` (OpenAI) · `claude-haiku-5-5` (Anthropic) · `qwen2.5:7b` (Ollama) — override with `LLM_MODEL`.
 `.env` 한 줄로 전환 — 클라우드든 로컬 SLM이든.
 
 | Step | File | What it does / 하는 일 |
 |---|---|---|
 | Index | `qa/indexer.py` | load → chunk(overlap) → embed → Chroma |
 | Retrieve | `qa/retriever.py` | embed query → nearest top-k chunks |
-| Agent | `qa/agent.py` | context → LLM → forced-JSON answer + citations |
+| Agent | `qa/agent.py` | context → LLM → schema-constrained JSON answer + citations |
 | API | `qa/api.py` | `POST /ask`, `GET /healthz` |
 | Eval | `qa/eval.py` | golden-set citation accuracy / 인용 정확도 |
 
-`make install · index · serve · eval · test`
+`make install · index · serve · eval · test` (`pytest -q` runs offline, no keys needed / 키 없이 실행)
 
 ## License
 MIT. Educational. / 교육용.
