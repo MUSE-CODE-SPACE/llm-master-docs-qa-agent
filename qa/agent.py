@@ -1,6 +1,6 @@
-"""The agent: retrieve evidence -> answer with citations (forced JSON).
+"""The agent: retrieve evidence -> answer with citations (schema-constrained JSON).
 Works with OpenAI, Anthropic, or a local SLM (Ollama) — set PROVIDER in .env.
-에이전트: 근거 검색 -> 인용과 함께 답(JSON 강제). OpenAI/Anthropic/로컬 SLM(Ollama) 모두 지원."""
+에이전트: 근거 검색 -> 인용과 함께 답(JSON 스키마 강제). OpenAI/Anthropic/로컬 SLM(Ollama) 모두 지원."""
 import json
 
 from qa.models import AnswerResponse, Citation
@@ -14,6 +14,28 @@ SYSTEM_PROMPT = (
     '"confidence" ("high"|"medium"|"low"). '
     "오직 주어진 컨텍스트에서만 답하라. 없으면 모른다고 답하라."
 )
+
+
+# JSON schema used for Claude structured outputs (replaces the old "{" prefill,
+# which current Claude models reject). / Claude 구조화 출력 스키마 (prefill 대체).
+ANSWER_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "answer": {"type": "string"},
+        "citations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"source": {"type": "string"}, "chunk_index": {"type": "integer"}},
+                "required": ["source", "chunk_index"],
+                "additionalProperties": False,
+            },
+        },
+        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+    },
+    "required": ["answer", "citations", "confidence"],
+    "additionalProperties": False,
+}
 
 
 def build_user_prompt(question: str, chunks) -> str:
@@ -31,11 +53,13 @@ def _call_llm(system: str, user: str) -> str:
 
         c = Anthropic(api_key=settings.anthropic_api_key)
         r = c.messages.create(
-            model=settings.llm_model, max_tokens=1024, system=system,
-            messages=[{"role": "user", "content": user},
-                      {"role": "assistant", "content": "{"}],
+            model=settings.llm_model, max_tokens=2048, system=system,
+            messages=[{"role": "user", "content": user}],
+            output_config={"format": {"type": "json_schema", "schema": ANSWER_SCHEMA}},
         )
-        return "{" + r.content[0].text
+        # Read blocks by type: the response may start with a thinking block.
+        # 타입으로 읽기: 응답이 thinking 블록으로 시작할 수 있음.
+        return "".join(b.text for b in r.content if b.type == "text")
     # openai or ollama (both speak the OpenAI Chat API) / openai·ollama는 같은 API
     from openai import OpenAI
 
